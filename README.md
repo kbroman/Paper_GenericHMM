@@ -13,6 +13,7 @@ reconstruction in multi-parent populations.
 
 - [R/qtl2](https://kbroman.org/qtl2)
 - [qtl2convert](https://github.com/kbroman/qtl2convert)
+- [qtl2fst](https:/github.com/kbroman/qtl2fst)
 - [broman](https://github.com/kbroman/broman)
 - [here](https://here.r-lib.org)
 
