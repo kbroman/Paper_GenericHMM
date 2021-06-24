@@ -1,0 +1,7 @@
+copy_from_bitbucket.sh
+DOapp/_cache/
+MAGICapp/_cache/
+LaTeX/
+gen_hmm.pdf
+Figs/
+*.html

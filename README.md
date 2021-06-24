@@ -1,0 +1,24 @@
+## A general hidden Markov model for multi-parent populations
+
+Source for a paper on a general hidden Markov model for genome
+reconstruction in multi-parent populations.
+
+- [`gen_hmm.Rnw`](gen_hmm.Rnw) - source document (LaTeX + knitr)
+- [`gen_hmm_bib`](gen_hmm.bib) - BibTex bibliography
+- [`DOapp/`](DOapp) - application to Diversity Outbred mice
+- [`MAGICapp/`](MAGICapp) - application to a maize MAGIC population
+- [`Makefile`](Makefile) - GNU Make file
+
+### Required R packages
+
+- [R/qtl2](https://kbroman.org/qtl2)
+- [qtl2convert](https://github.com/kbroman/qtl2convert)
+- [broman](https://github.com/kbroman/broman)
+- [here](https://here.r-lib.org)
+
+### License
+
+The content in this repository is licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+[![CC BY 4.0](https://licensebuttons.net/l/by/4.0/88x31.png)](https://creativecommons.org/licenses/by/4.0/)
