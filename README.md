@@ -6,7 +6,7 @@ reconstruction in multi-parent populations.
 - [`gen_hmm.Rnw`](gen_hmm.Rnw) - source document (LaTeX + knitr)
 - [`gen_hmm_bib`](gen_hmm.bib) - BibTex bibliography
 - [`DOapp/`](DOapp) - application to Diversity Outbred mice
-- [`MAGICapp/`](MAGICapp) - application to a maize MAGIC population
+- [`CCapp/`](CCapp) - application to Collaborative Cross mice
 - [`Makefile`](Makefile) - GNU Make file
 
 ### Required R packages
