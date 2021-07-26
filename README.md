@@ -15,6 +15,8 @@ reconstruction in multi-parent populations.
 - [qtl2convert](https://github.com/kbroman/qtl2convert)
 - [qtl2fst](https:/github.com/kbroman/qtl2fst)
 - [broman](https://github.com/kbroman/broman)
+- [data.table](https://rdatatable.gitlab.io/data.table/)
+- [readxl](https://readxl.tidyverse.org)
 - [here](https://here.r-lib.org)
 
 ### License
