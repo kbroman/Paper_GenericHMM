@@ -1,5 +1,7 @@
 ## A general hidden Markov model for multi-parent populations
 
+[![DOI](https://zenodo.org/badge/380058622.svg)](https://zenodo.org/badge/latestdoi/380058622)
+
 Source for a paper on a general hidden Markov model for genome
 reconstruction in multi-parent populations.
 

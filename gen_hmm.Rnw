@@ -373,8 +373,8 @@ Reorganized files in R/qtl2 format are at
 \url{https://github.com/rqtl/qtl2data/tree/master/CC}.
 
 Our detailed analysis code is available at GitHub,
-\url{https://github.com/kbroman/Paper_GeneralHMM}.
-
+\url{https://github.com/kbroman/Paper_GeneralHMM},
+and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.5156660}.
 
 
 \clearpage
