@@ -1,0 +1,513 @@
+---
+author: "Karl W Broman"
+title: "Analysis of Collaborative Cross mouse data"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE,
+                      fig.width=11, fig.height=6)
+options(width=110)
+set.seed(20200526)
+```
+
+Here we consider the data from [Srivastava et al.
+(2017)](https://doi.org/10.1534/genetics.116.198838) on Collaborative
+Cross mouse data, and compare the use of an exact hidden Markov model
+(HMM) to a more approximate one. The data are available at
+[zenodo](https://doi.org/10.5281/zenodo.377036), with additional
+supplementary information in [Table S2 at the journal
+website](http://www.genetics.org/highwire/filestream/438137/field_highwire_adjunct_files/10/TableS2.xlsx).
+
+The compiled files that we used are at
+[GitHub](https://github.com/rqtl/qtl2data/tree/master/CC).
+
+
+
+### Load packages and data
+
+We first load [R/qtl2](https://kbroman.org/qtl2) as well
+as the [qtl2convert](https://github.com/rqtl/qtl2convert),
+[qtl2fst](https://github.com/rqtl/qtl2fst),
+[broman](https://github.com/kbroman/broman),
+[data.table](https://rdatatable.gitlab.io/data.table/),
+[readxl](https://readxl.tidyverse.org),
+and [here](https://here.r-lib.org) packages.
+
+```{r load_packages}
+library(qtl2)
+library(qtl2convert)
+library(broman)
+library(here)
+library(data.table)
+library(readxl)
+```
+
+We create a cache directory to store stuff.
+
+```{r cache_directory}
+cachedir <- here("CCapp/_cache")
+if(!dir.exists(cachedir)) dir.create(cachedir)
+```
+
+We download the data from the
+[GitHub](https://github.com/rqtl/qtl2data/tree/master/CC) as a zip
+file with the data in [R/qtl2
+format](https://kbroman.org/qtl2/assets/vignettes/input_files.html).
+
+```{r download_data}
+url <- "https://raw.githubusercontent.com/rqtl/qtl2data/master/CC/cc.zip"
+file <- file.path(cachedir, basename(url))
+if(!file.exists(file)) download.file(url, file)
+```
+
+We load it with `read_cross2()`.
+
+```{r load_data, eval=FALSE}
+cc <- read_cross2(file)
+```
+
+```{r load_data_really, echo=FALSE}
+rds_file <- file.path(cachedir, "cc.rds")
+if(file.exists(rds_file)) {
+    cc <- readRDS(rds_file)
+} else {
+<<load_data>>
+    saveRDS(cc, rds_file)
+}
+```
+
+The data concern `r n_ind(cc)` Collaborative Cross mouse lines
+They were genotyped with the GigaMUGA array.
+There are a total of `r add_commas(tot_mar(cc))` informative markers.
+
+We create a `"genril8"` version, to use the general (but approximate)
+HMM.
+
+```{r create_genril_version}
+genril <- qtl2convert::cross2_ril_to_genril(cc)
+```
+
+
+### Cross design information
+
+The CC lines are 8-way recombinant inbred lines; each was formed by crossing
+eight founders in a specific "funnel" to bring the eight genomes
+together as rapidly as possible. The cross design turns out to not
+matter for the autosomes in eight-way RIL by sibling mating, but it is
+critical for the X chromosome, as only five of the eight alleles can
+contribute to the X chromosome. (In the cross
+[(A&times;B)&times;(C&times;D)]&times;[(E&times;F)&times;(G&times;H)],
+with the female parents listed first, only alleles A, B, C, E, and F
+should be present on the X chromosome.)
+
+We download Table S2 from [Srivastava et al.
+(2017)](https://doi.org/10.1534/genetics.116.198838), as well
+as the `SupplementalData.zip` file from
+[zenodo](https://doi.org/10.5281/zenodo.377036), which contains `CCStrains.csv`.
+
+```{r download_tableS2}
+url <- "http://www.genetics.org/highwire/filestream/438137/field_highwire_adjunct_files/10/TableS2.xlsx"
+tabs2_file <- here("CCapp", basename(url))
+if(!file.exists(tabs2_file)) download.file(url, tabs2_file)
+```
+
+```{r download_and_extract_CCStrains}
+url <- "https://zenodo.org/record/377036/files/SupplementalData.zip?download=1"
+zipfile <- here("CCapp/SupplementalData.zip")
+csvfile <- here("CCapp/CCStrains.csv")
+if(!file.exists(csvfile)) {
+    csvfile_in_zip <- "SupplmentalData/CCStrains.csv"
+    if(!file.exists(zipfile)) download.file(url, zipfile)
+    unzip(zipfile, csvfile_in_zip, exdir=dirname(csvfile), junkpaths=TRUE)
+}
+```
+
+```{r load_supplements}
+tabS2 <- as.data.frame( readxl::read_excel(tabs2_file) )
+ccstr <- data.table::fread(csvfile, data.table=FALSE)
+```
+
+Table S2 provides funnel codes for `r sum(!is.na(tabS2$"Funnel Code"))`
+of the `r nrow(tabS2)` CC lines. Both files also give information
+about the original of the mitochondria and X chromosome, and the total
+number of founders that contribute to each line.
+(`r sum(tabS2$"# of Founders" < 8)` lines have 6 or 7 founders:
+`r sum(tabS2$"# of Founders" == 6)` have 6 founders and
+`r sum(tabS2$"# of Founders" == 7)` have 7 founders.)
+
+```{r compare_supplemental_data, echo=FALSE}
+str1 <- tabS2$Strain
+str2 <- ccstr$Strain
+stopifnot( length(str1)==length(str2), all(str1 == str2) )
+
+stopifnot( all( tabS2$"N of Founders" == ccstr$N_Founders ) )
+stopifnot( tabS2$"Chromosome Y" == ccstr$ChrY )
+stopifnot( all(rownames(cc) == tabS2$Strain) )
+
+has_funnel <- tabS2[!is.na(tabS2$"Funnel Code"),]
+has_funnel$funnel_mtdna <- substr(has_funnel$"Funnel Code", 1, 1)
+has_funnel$funnel_Y <- substr(has_funnel$"Funnel Code", 8, 8)
+
+cc_funnel <- apply(cc$cross_info, 1, function(i) paste(LETTERS[i], collapse=""))
+stopifnot( all(cc_funnel[has_funnel$Strain] == has_funnel$"Funnel Code") )
+
+no_funnel <- tabS2[is.na(tabS2$"Funnel Code"),]
+fudged_funnels <- cc_funnel[no_funnel$Strain]
+# CC013/GeniUnc mt=E and chrY=E but went with EDCFHAGB
+# (but for CC013, X chromosome has just C and H)
+# all cases with A/D or D/A -> A
+# CC031/GeniUnc  chrY=B but that's present on X
+# CC037/TauUnc   chrY=D but that's present on X
+# CC056/GeniUnc  chrY=E but that's present on X
+```
+
+Key notes:
+
+- `r sum(tabS2$Mitochondria != ccstr$Mitochondria)` cases where the
+  mitochondria in Table S2 doesn't match what is in CCStrains.csv.
+
+- Of the `r nrow(tabS2)` CC strains, `r nrow(tabS2)-nrow(has_funnel)` strains
+  are missing the information on the cross design (the "funnel code").
+
+- There is `r numbers[sum(tabS2$"Chromosome Y" == tabS2$Mitochondria)]`
+  case (`r vec2string(tabS2$Strain[tabS2$"Chromosome Y" == tabS2$Mitochondria])`)
+  where the allele on the Mitochondria and Y chromosome are the same,
+  which shouldn't happen.
+
+- There are three cases
+  (CC031/GeniUnc, CC037/TauUnc, and CC056/GeniUnc)
+  where the reported Y chromosome allele is clearly present on the X
+  chromosome, which shouldn't happen.
+
+We used genotype probabilities provided by
+[Srivastava et al. (2017)](https://doi.org/10.1534/genetics.116.198838)
+to construct cross funnels compatible with the inferred X chromosome
+genotypes as well as the mitochondria and Y chromosome where possible
+(see [the qtl2data repository at GitHub](https://github.com/rqtl/qtl2data/blob/master/CC/R/convert_cc_data.R#L71)).
+
+
+### Calculate genotype probabilities
+
+We now turn to the genotype probability calculations.
+We insert pseudomarkers into the marker map so that no two
+markers/pseudomarkers are > 0.1 cM apart. We use interpolation to find
+the corresponding physical positions.
+
+```{r pseudomarker_maps}
+gmap <- insert_pseudomarkers(cc$gmap, step=0.1, stepwidth="max")
+pmap <- interp_map(gmap, cc$gmap, cc$pmap)
+```
+
+```{r save_pseudomarker_maps, echo=FALSE}
+saveRDS(gmap, file.path(cachedir, "gmap.rds"))
+saveRDS(pmap, file.path(cachedir, "pmap.rds"))
+```
+
+Now we do the genome reconstruction, first with the more "exact" HMM.
+We assume 0.2% genotyping error and use the [Carter-Falconer map
+function](https://www.ias.ac.in/article/fulltext/jgen/050/02/0307-0323).
+
+```{r calc_genoprob_cc, eval=FALSE}
+pr_cc <- calc_genoprob(cc, gmap, error_prob=0.002, map_function="c-f", cores=0)
+```
+
+```{r calc_genoprob_cc_really, echo=FALSE}
+file <- file.path(cachedir, "probs_cc.rds")
+if(file.exists(file)) {
+    pr_cc <- readRDS(file)
+} else {
+<<calc_genoprob_cc>>
+    saveRDS(pr_cc, file)
+}
+```
+
+We now do the same thing using the `"genril8"` cross type that gives
+the approximate HMM.
+
+```{r calc_genoprob_genril, eval=FALSE}
+pr_genril <- calc_genoprob(genril, gmap, error_prob=0.002, map_function="c-f", cores=0)
+```
+
+```{r calc_genoprob_genail_really, echo=FALSE}
+file <- file.path(cachedir, "probs_genril.rds")
+if(file.exists(file)) {
+    pr_genril <- readRDS(file)
+} else {
+<<calc_genoprob_genril>>
+    saveRDS(pr_genril, file)
+}
+```
+
+Note that the calculation of the genotype probabilities
+using an 8-core linux laptop with
+64 GB RAM, it took
+28 sec with the `"risib8"` cross type and
+17 sec with the `"genril8"` cross type, so the approximate method
+took about 62\% as much time.
+
+### Observed differences
+
+The differences in the genotype probabilities are negligible on the
+autosomes, but can be substantial on the X chromosome.
+
+```{r probs_diff, eval=FALSE}
+p_d <- sapply(names(pr_cc), function(chr) apply(abs(pr_cc[[chr]] - pr_genril[[chr]]), 1, max))
+p_d_chr <- apply(p_d, 2, max)
+```
+
+```{r probs_diff_really, echo=FALSE}
+file <- file.path(cachedir, "probs_diff.rds")
+if(file.exists(file)) {
+    p_d <- readRDS(file)
+} else {
+<<probs_diff>>
+    saveRDS(p_d, file)
+}
+p_d_chr <- apply(p_d, 2, max)
+```
+
+The maximum difference on the autosomes was `r myround(max(p_d_chr[-20]), 4)`.
+On the X chromosome, there are `r sum(p_d[,"X"] > 0.25)` lines with
+differences > 0.25, and `r sum(p_d[,"X"] > 0.1)` lines with
+differences > 0.1. These differences are largely cases where some
+founder strains are indistinguishable for a small region, and where
+the cross funnel for a CC line excludes one or more of such founders.
+
+If we take the inferred allele to be that with the greatest
+probability, provided that it has probability > 0.95, we see no
+differences in the inferred alleles. That is, there are no cases where
+the more-exact model and the approximate model give high probability
+to different probabilities.
+
+```{r inferred_alleles}
+v_cc <- maxmarg(pr_cc, cores=0)
+v_genril <- maxmarg(pr_genril, cores=0)
+
+vv_cc <- do.call("cbind", v_cc)
+vv_genril <- do.call("cbind", v_genril)
+
+stopifnot( sum(vv_cc != vv_genril, na.rm=TRUE)==0 )
+```
+
+Also note that the with the approximate model (which puts no
+constraints on the allowed alleles on the X chromosome), there are no
+cases where the inferred allele differs from what would be expected
+under the assumed cross design.
+
+```{r obs_vs_exp_alleles_on_X}
+obs_alleles <- t(apply(v_genril$X, 1, function(a) !is.na(match(1:8, a))))
+exp_alleles <- t(apply(cc$cross_info, 1, function(a) {
+                    result <- rep(FALSE, 8)
+                    result[a[c(1,2,3,5,6)]] <- TRUE
+                    result }))
+stopifnot( !any(obs_alleles & !exp_alleles) )
+```
+
+There are some important X chromosome differences in the genotype
+probabilities by the two models, but they all look to be cases where
+two or more founder strains cannot be distinguished for some interval
+on the chromosome, and one or more are excluded by the cross design
+assumed in the more-exact model.
+
+For example, consider the X chromosome genotype probabilities strain
+CC038/GeniUnc by the two methods:
+
+```{r pr_cc038_xchr}
+par(mfrow=c(2,1), mar=c(4.1, 4.1, 2.1, 1.1), las=1)
+str <- "CC038/GeniUnc"
+plot_genoprob(pr_cc, pmap, str, "X", main="CC038 with more-exact model", yaxt="n",
+              xlab="Chr X position (Mbp)")
+axis(side=2, at=8:1, names(CCcolors))
+plot_genoprob(pr_genril, pmap, str, "X", main="CC038 with approximate model", yaxt="n",
+              xlab="Chr X position (Mbp)")
+axis(side=2, at=8:1, names(CCcolors))
+```
+
+The results look identical except for a small segment at around 135
+Mbp, which the more-exact model infers to be from NOD, while the
+approximate model splits it evenly between NOD and B6. Let's look at
+the founder genotypes across that region.
+
+```{r study_cc038_xchr_region}
+# find the region (high prob for NOD and between 120-140 Mbp)
+mar <- names(pmap$X)[pmap$X >= 120 & pmap$X <= 140 & pr_cc$X["CC038/GeniUnc","DD",] > 0.95]
+
+# pull out the founder genotypes (no missing data)
+fg <- cc$founder_geno$X[,mar]
+stopifnot(all(!is.na(fg) & (fg == 1 | fg==3)) )
+# number of differences in founder genotypes over the region
+d <- matrix(0, nrow(fg), nrow(fg))
+for(i in 1:(nrow(fg)-1)) for(j in (i+1):nrow(fg)) d[i,j] <- d[j,i] <- sum(fg[i,] != fg[j,])
+nd <- length(mar)-d
+```
+
+In the region from `r myround(min(pmap$X[mar]), 1)` to
+`r myround(max(pmap$X[mar]), 1)` Mbp, these two founder strains are identical
+for `r nd[2,4]` of `r length(mar)` markers, while all of the other 6
+strains differ from them at &GreaterEqual; `r min(nd[2,-c(2,4)])` markers
+(A/J and 129 are also identical over this region, but they differ from
+B6 and NOD at `r d[1,4]` markers.)
+The B6 founder is excluded based on the cross design for
+this strain (funnel code `r tabS2[tabS2$Strain=="CC038/GeniUnc","Funnel Code"]`).
+
+Contrast these results with what we get if we use an incorrect cross
+edesign, for example assuming the cross
+where these two alleles are excluded, say that for CC020/GeniUnc,
+`r tabS2[tabS2$Strain=="CC020/GeniUnc","Funnel Code"]`.
+
+```{r calc_cc038_when_wrong_design, fig.height=3}
+# calc probability
+cc038 <- cc["CC038/GeniUnc","X"]
+cc038$cross_info[] <- as.numeric(cc["CC020/GeniUnc","X"]$cross_info[])
+pr_cc038_wrong <- calc_genoprob(cc038, gmap["X"], error_prob=0.002, map_function="c-f")
+
+# save for the paper
+saveRDS(pr_cc038_wrong, file.path(cachedir, "probs_cc038_wrong.rds"))
+
+# make the plot
+par(mar=c(4.1, 4.1, 2.1, 1.1), las=1)
+plot_genoprob(pr_cc038_wrong, pmap, chr="X", main="CC038 with wrong cross", yaxt="n",
+              xlab="Chr X position (Mbp)")
+axis(side=2, at=8:1, names(CCcolors))
+
+# inferred crossovers
+nxo_orig <- count_xo(v_cc)["CC038/GeniUnc", "X"]
+nxo_wrong <- count_xo(maxmarg(pr_cc038_wrong))["CC038/GeniUnc", "X"]
+nxo_genril <- count_xo(v_genril)["CC038/GeniUnc", "X"]
+```
+
+As you can see, the whole chromosome becomes a complete mess,
+as the cross design excludes not just B6 and NOD, but also 129.
+With this incorrect cross design, there is
+an inferred `r nxo_wrong` crossovers on the X chromosome, versus
+`r nxo_orig` crossovers when the correct cross design is used.
+(The approximate model, which doesn't exclude any alleles from the X
+chromosome, gives an inferred `r nxo_genril` crossovers, because it
+leaves that B6/NOD segment as un-inferred and our crude count of
+crossovers ignores the obvious double-crossover.)
+
+
+### Other differences
+
+Are the other differences all like this? Let's look at the
+`r sum(p_d[,"X"] > 0.1)` cases with probability differences > 0.1
+
+On the left is a bivariate heatmap of the probabilities, with red
+indicating high probability with the more-exact model alone, blue
+indicating high probability with the approximation model alone, and
+purple indicating high probability by both models.
+
+On the right are the differences in the probabilities.
+
+```{r plot_diffs, fig.height=3}
+main <- function(str="CC002/Unc") {
+    ccinf <- cc$cross_info[str,]
+    excl <- names(CCcolors)[sort(ccinf[c(4,7,8)])]
+    incr <- names(CCcolors)[ccinf[3]]
+
+    paste0(str, " (", incr, " high; ", paste(excl,collapse=","), " excluded)")
+}
+
+add_text <- function(pos, founder, pos_mid, val) {
+    adj <- c(ifelse(pos > pos_mid, 1, 0), 0.5)
+    xd <- ifelse(pos > pos_mid, -1, +1)*0.02*pos_rng
+    text(pos + xd, val, names(CCcolors)[founder], adj=adj, col=CCcolors[founder])
+    }
+
+o <- order(p_d[,"X"], decreasing=TRUE)
+par(mar=c(3.1,3.1,2.1,1.1), mfrow=c(1,2))
+for(i in 1:sum(p_d[,"X"] > 0.1)) {
+    str <- ind_ids(cc)[o[i]]
+
+    plot_genoprobcomp(pr_cc, pr_genril, pmap, str, "X",
+                      main=main(str), yaxt="n", xaxt="n", xlab="")
+    axis(side=1, at=seq(20, 160, by=20), mgp=c(0, 0.3, 0), tick=FALSE)
+    axis(side=2, at=8:1, labels=names(CCcolors), mgp=c(0, 0.2, 0), tick=FALSE, las=1)
+    title(xlab="X chr position (Mbp)", mgp=c(1.8, 0, 0))
+
+    d <- pr_cc[["X"]][o[i],,] - pr_genril[["X"]][o[i],,]
+    grayplot(pmap$X, d[1,],
+             ylim=c(-1, 1)*max(p_d[,"X"]), type="l", lwd=2, col=CCcolors[1],
+             xlab="X chr position (Mbp)", ylab="difference in probability",
+             main=str)
+    for(j in 2:8) {
+        lines(pmap$X, d[j,],
+              lwd=2, col=CCcolors[j])
+    }
+
+    wh_max <- which(d==max(d), arr=TRUE)
+    wh_min <- which(d==min(d), arr=TRUE)
+
+    pos_max <- pmap$X[wh_max[2]]
+    pos_min <- pmap$X[wh_min[2]]
+    pos_mid <- median(range(pmap$X))
+    pos_rng <- diff(range(pmap$X))
+
+    add_text(pos_max, wh_max[1], pos_mid, d[wh_max[1], wh_max[2]])
+    add_text(pos_min, wh_min[1], pos_mid, d[wh_min[1], wh_min[2]])
+}
+```
+
+
+- CC038/GeniUnc is the one we looked at in detail. B6 and NOD are
+  identical in the region, but B6 is excluded by the cross design.
+
+- For CC002/Unc the big difference is at the telomere (there are a
+  number like this) and includes B6 which was excluded. A smaller
+  difference at about 140 Mbp with A/J and NOD concerns the prior,
+  with the standard treatment having NOD:AJ at expected frequency 2:1,
+  which our approximate model assumes they are equally frequent.
+
+- CC019/TauUnc the large difference is at the centromere and concerns
+  129 which was excluded.
+
+- The difference in CC017/Unc is at a single pseudomarker position and
+  concerns the rate of transition between states when another allele
+  is excluded.
+
+- For CC008/GeniUnc the main difference at the telomere concerns A/J
+  and NOD which were excluded. There's another small difference at
+  around 15 Mbp, which looks like it is related to the 2:1 prior.
+
+- CC072/TauUnc is a case where B6 and NOD are identical and the
+  standard treatment has B6:NOD at expected frequency 2:1.
+
+- C005/TauUnc is another case where NZO was excluded.
+
+- CC055/TauUnc in the region 20-40 Mbp seems to concern the
+  re-weighting of AJ vs NOD when you've excluded B6 and 129.
+
+- CC028/GeniUnc at 60 Mbp probably just concerns the prior on the NOD allele
+  relative to 129 and NZO.
+
+- CC053/Unc, CC018/Unc, CC036/Unc, CC024/GeniUnc, and CC033/GeniUNC
+  all show very similar patterns at around 120 Mbp, where 129 has high
+  probability and NOD was excluded.
+
+- CC007/Unc at 20 Mbp concerns the prior on NZO relative to B6, where the
+  prior on NZO is higher.
+
+
+### Summary
+
+There are negligible differences on the autosomes.
+
+The differences on the X chromosome are due to the use of the cross
+design, which can be helpful to exclude certain founder alleles, especially
+for regions where multiple founders are identical by descent. The
+other contributor to the differences concern the 2:1 prior for one of
+the founders (in the third slot of the cross funnel) versus the others.
+
+
+### Session info
+
+Here are the details on the version of R and the versions of the R
+packages that I used.
+
+```{r session_info}
+sessionInfo()
+```

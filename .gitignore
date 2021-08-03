@@ -1,5 +1,5 @@
 copy_from_bitbucket.sh
-DOapp/_cache/
-CCapp/_cache/
+DOapp/_cache
+CCapp/_cache
 LaTeX/
 Figs/

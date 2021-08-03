@@ -1,0 +1,344 @@
+---
+author: "Karl W Broman"
+title: "Analysis of Diversity Outbred mouse data"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE,
+                      fig.width=11, fig.height=6)
+options(width=110)
+set.seed(20200526)
+```
+
+Here we consider the data from [Al-Barghouthi et al.
+(2021)](https://doi.org/10.1038/s41467-021-23649-0) on Diversity
+Outbred mouse data, and compare the use of an exact hidden Markov
+model (HMM) to a more approximate one. The data are available at
+[zenodo](https://doi.org/10.5281/zenodo.4265417), and analysis scripts
+are at [github](https://github.com/basel-maher/DO_project) as well as
+archived at [zenodo](https://doi.org/10.5281/zenodo.4718146).
+
+### Load packages and data
+
+We first load [R/qtl2](https://kbroman.org/qtl2) as well
+as the [qtl2convert](https://github.com/rqtl/qtl2convert),
+[qtl2fst](https://github.com/rqtl/qtl2fst),
+[broman](https://github.com/kbroman/broman),
+and [here](https://here.r-lib.org) packages.
+
+
+```{r load_packages}
+library(qtl2)
+library(qtl2convert)
+library(broman)
+library(here)
+library(qtl2fst)
+```
+
+We create a cache directory to store stuff.
+
+```{r cache_directory}
+cachedir <- here("DOapp/_cache")
+if(!dir.exists(cachedir)) dir.create(cachedir)
+```
+
+We download the data from the [zenodo](https://doi.org/10.5281/zenodo.4265417)
+and load it; the `.RData` file contains a single object `cross_basic`.
+
+```{r download_data}
+url <- "https://zenodo.org/record/4265417/files/cross_basic_cleaned.Rdata"
+file <- file.path(cachedir, basename(url))
+if(!file.exists(file)) download.file(url, file)
+load(file)
+```
+
+The data concern `r n_ind(cross_basic)` Diversity Outbred mice
+(from generations `r min(cross_basic$cross_info)` &ndash;
+`r max(cross_basic$cross_info)`),
+including `r sum(cross_basic$is_female)` females and `r sum(!cross_basic$is_female)` males.
+They were genotyped with the GigaMUGA array.
+There are a total of `r add_commas(tot_mar(cross_basic))` informative markers.
+
+We create a `"genail"` version, to use the general (but approximate)
+HMM.
+
+```{r create_genail_version}
+genail <- qtl2convert::cross2_do_to_genail8(cross_basic)
+```
+
+### Calculate genotype probabilities
+
+We insert pseudomarkers into the marker so that no two
+markers/pseudomarkers are > 0.1 cM apart. We use interpolation to find
+the corresponding physical positions.
+
+```{r pseudomarker_maps}
+gmap <- insert_pseudomarkers(cross_basic$gmap, step=0.1, stepwidth="max")
+pmap <- interp_map(gmap, cross_basic$gmap, cross_basic$pmap)
+```
+
+```{r save_pseudomarker_maps, echo=FALSE}
+saveRDS(gmap, file.path(cachedir, "gmap.rds"))
+saveRDS(pmap, file.path(cachedir, "pmap.rds"))
+```
+
+Now we do the genome reconstruction, first with the more "exact" HMM.
+We assume 0.2% genotyping error and use the [Carter-Falconer map
+function](https://www.ias.ac.in/article/fulltext/jgen/050/02/0307-0323).
+
+The results are enormous, so here we will use
+[qtl2fst](https://github.com/rqtl/qtl2fst) to save memory, calculating
+them but storing them on disk.
+
+```{r calc_genoprob_do, eval=FALSE}
+dir <- file.path(cachedir, "probs_do")
+if(!dir.exists(dir)) dir.create(dir)
+
+fpr_do <- calc_genoprob_fst(cross_basic, "probs_do", dir,
+                            gmap, error_prob=0.002,
+                            map_function="c-f", cores=0)
+```
+
+```{r calc_genoprob_do_really, echo=FALSE}
+dir <- file.path(cachedir, "probs_do")
+if(!dir.exists(dir)) dir.create(dir)
+file <- file.path(dir, "probs_do_fstindex.rds")
+if(file.exists(file)) {
+    fpr_do <- readRDS(file)
+} else {
+<<calc_genoprob_do>>
+}
+```
+
+We will also convert them to allele dosages, again using the qtl2fst
+package to save them on disk.
+
+```{r calc_aprobs_do, eval=FALSE}
+dir <- file.path(cachedir, "aprobs_do")
+if(!dir.exists(dir)) dir.create(dir)
+fapr_do <- genoprob_to_alleleprob_fst(fpr_do, "aprobs_do", dir, cores=0)
+```
+
+```{r calc_aprobs_do_really, echo=FALSE}
+dir <- file.path(cachedir, "aprobs_do")
+if(!dir.exists(dir)) dir.create(dir)
+file <- file.path(dir, "aprobs_do_fstindex.rds")
+if(file.exists(file)) {
+    fapr_do <- readRDS(file)
+} else {
+<<calc_aprobs_do>>
+}
+```
+
+We now do the same thing using the `"genail8"` cross type that gives
+the approximate HMM. First the 36-state genotype probabilities.
+
+```{r calc_genoprob_genail, eval=FALSE}
+dir <- file.path(cachedir, "probs_genail")
+if(!dir.exists(dir)) dir.create(dir)
+
+fpr_genail <- calc_genoprob_fst(genail, "probs_genail", dir,
+                                gmap, error_prob=0.002,
+                                map_function="c-f", cores=0)
+```
+
+```{r calc_genoprob_genail_really, echo=FALSE}
+dir <- file.path(cachedir, "probs_genail")
+if(!dir.exists(dir)) dir.create(dir)
+file <- file.path(dir, "probs_genail_fstindex.rds")
+if(file.exists(file)) {
+    fpr_genail <- readRDS(file)
+} else {
+<<calc_genoprob_genail>>
+}
+```
+
+We will also convert them to allele dosages, again using the qtl2fst
+package to save them on disk.
+
+```{r calc_aprobs_genail, eval=FALSE}
+dir <- file.path(cachedir, "aprobs_genail")
+if(!dir.exists(dir)) dir.create(dir)
+fapr_genail <- genoprob_to_alleleprob_fst(fpr_genail, "aprobs_genail",
+                                          dir, cores=0)
+```
+
+```{r calc_aprobs_genail_really, echo=FALSE}
+dir <- file.path(cachedir, "aprobs_genail")
+if(!dir.exists(dir)) dir.create(dir)
+file <- file.path(dir, "aprobs_genail_fstindex.rds")
+if(file.exists(file)) {
+    fapr_genail <- readRDS(file)
+} else {
+<<calc_aprobs_genail>>
+}
+```
+
+Note that when I calculated the genotype probabilities directly
+(without using the qtl2fst package) using an 8-core linux laptop with
+64 GB RAM, it took
+2100 sec with the `"do"` cross type and
+1594 sec with the `"genail8"` cross type, so the approximate method
+took about 75\% as much time.
+
+## Genome scans for QTL
+
+We'll now perform genome scans to see how the results compare. We'll
+use a linear mixed model, with a random polygenic effect to account
+for relationships, using the "leave-one-chromosome-out" (LOCO) method.
+
+So first we calculate the kinship matrices.
+
+```{r calc_kinship, eval=FALSE}
+k_do <- calc_kinship(fapr_do, "loco", cores=0)
+k_genail <- calc_kinship(fapr_genail, "loco", cores=0)
+```
+
+```{r calc_kinship_really, eval=TRUE}
+kfile_do <- file.path(cachedir, "kinship_loco_do.rds")
+kfile_genail <- file.path(cachedir, "kinship_loco_genail.rds")
+if(file.exists(kfile_do) && file.exists(kfile_genail)) {
+    k_do <- readRDS(kfile_do)
+    k_genail <- readRDS(kfile_genail)
+} else {
+<<calc_kinship>>
+    saveRDS(k_do, kfile_do)
+    saveRDS(k_genail, kfile_genail)
+}
+```
+
+We set up some covariates to use; see the
+[`map_qtl.R`](https://github.com/basel-maher/DO_project/blob/master/src/map_qtl.R)
+file in the [code
+repository](https://github.com/basel-maher/DO_project/) for the
+[Al-Barghouthi et al.
+(2021)](https://doi.org/10.1038/s41467-021-23649-0) paper.
+
+```{r set_up_covariates}
+covar <- as.matrix(cross_basic$covar)
+covar[,"sex"] <- (covar[,"sex"] == "M")*1
+covar <- covar[,!(colnames(covar) %in% c("sac_date", "body_length", "ngen"))]
+covar <- apply(covar,2,as.numeric)
+rownames(covar) <- rownames(cross_basic$covar)
+```
+
+And now we perform the genome scans for a set of selected phenotypes.
+For most of them, we take logs; for Wpy we take log(x+1); and there
+are a set of 6 that we leave untransformed.
+
+```{r phenotypes}
+qcol <- c(TMD="uCT_Ct.TMD",
+          Ma.Ar="uCT_Ma.Ar",
+          Tt.Ar="uCT_Tt.Ar",
+          Ct.Por="uCT_Ct.porosity",
+          ML="ML",
+          pMOI="uCT_pMOI",
+          "Ct.Ar/Tt.Ar"="uCT_Ct.Ar.Tt.Ar",
+          Imax="uCT_Imax",
+          BMD="uCT_BMD",
+          W="bending_work_to_yield",
+          Wpy="bending_work_post_yield",
+          Dfx="bending_disp_at_frax",
+          DFmax="bending_disp_at_max_load",
+          Fmax="bending_max_load",
+          Ffx="bending_frax_load",
+          Ct.Ar="uCT_Ct.Ar",
+          Imin="uCT_Imin",
+          Ct.Th="uCT_Ct.Th",
+          Tb.Sp="uCT_Tb.Sp",
+          Tb.N="uCT_Tb.N")
+
+# note that uCT_Ct.porosity has a huge batch effect
+# (first three batches have values < 0.5; last 8 have values > 0.5)
+
+# phenotypes to transform (see https://github.com/basel-maher/DO_project/blob/master/src/map_qtl.R#L73-L75)
+take_logp1 <- qcol["Wpy"]
+take_log <- pheno_names(cross_basic)[c(6:14,16,17,21,23:33,34,35,37:41,43:49,51,52,54:58,61:70,72,74,76)] %win%
+                (qcol %wnin% take_logp1)
+no_log <- pheno_names(cross_basic)[c(15,18,19,20,22,36,42,50,53,59,60)] %win% qcol
+
+# double-check that I got them all
+stopifnot(length(take_logp1) + length(no_log) + length(take_log) == length(qcol))
+
+# pull out and transform the phenotypes
+phe <- cross_basic$pheno[,qcol]
+phe[,take_log] <- log(phe[,take_log])
+phe[,take_logp1] <- log(phe[,take_logp1] + 1)
+
+# change the column names
+colnames(phe) <- names(qcol)
+```
+
+Now, to perform the genome scans.
+
+```{r scan1, eval=FALSE}
+out_scan1_do <- scan1(fapr_do, phe, k_do, addcovar=covar, cores=0)
+out_scan1_genail <- scan1(fapr_genail, phe, k_genail, addcovar=covar, cores=0)
+```
+
+```{r scan1_really, echo=FALSE}
+file1 <- file.path(cachedir, "scan1_do.rds")
+file2 <- file.path(cachedir, "scan1_genail.rds")
+if(file.exists(file1) && file.exists(file2)) {
+    out_scan1_do <- readRDS(file1)
+    out_scan1_genail <- readRDS(file2)
+} else {
+<<scan1>>
+    saveRDS(out_scan1_do, file1)
+    saveRDS(out_scan1_genail, file2)
+}
+```
+
+
+## Comparisons
+
+The genotype probabilities can hardly be distinguished.
+
+```{r probs_diff, eval=FALSE}
+p_d <- sapply(names(fpr_do), function(chr) max(abs(fpr_do[[chr]] - fpr_genail[[chr]])))
+```
+
+```{r probs_diff_really, echo=FALSE}
+file <- file.path(cachedir, "probs_diff.rds")
+if(file.exists(file)) {
+    p_d <- readRDS(file)
+} else {
+<<probs_diff>>
+    saveRDS(p_d, file)
+}
+```
+
+The maximum difference was `r myround(max(p_d), 3)` on the
+`r names(which.max(p_d))` chromosome followed by a difference of
+`r myround(sort(p_d, decreasing=TRUE)[2], 4)` on chromosome
+`r names(sort(p_d, decreasing=TRUE))[2]`. For that reason, the QTL
+mapping results were hardly different. Across all `r ncol(out_scan1_do)`
+traits considered, the maximum difference in LOD scores in the two
+sets of results was `r myround(maxlod(abs(out_scan1_do - out_scan1_genail)), 3)`.
+
+Here's a plot of the LOD curves across the genome for tissue mineral
+density (TMD). The differences are too small to be distinguished by eye.
+
+```{r plot_tmd_scan}
+layout(rbind(1,2), height=c(3,1))
+par(mar=c(3.1, 3.1, 1.1, 0.6))
+plot(out_scan1_do, pmap, lod="TMD")
+plot(out_scan1_genail, pmap, lod="TMD", add=TRUE, col="violetred", lty=3)
+plot(out_scan1_do - out_scan1_genail, pmap, ylim=c(-0.02, 0.02), lod="TMD",
+     ylab="LOD(DO) - LOD(genAIL8)")
+```
+
+
+
+## Session info
+
+Here are the details on the version of R and the versions of the R
+packages that I used.
+
+```{r session_info}
+sessionInfo()
+```
