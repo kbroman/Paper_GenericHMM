@@ -2,16 +2,17 @@
 
 [![DOI](https://zenodo.org/badge/380058622.svg)](https://zenodo.org/badge/latestdoi/380058622)
 
-Source for a paper on a general hidden Markov model for genome
-reconstruction in multi-parent populations.
+Source for Broman KW (2021) A general hidden Markov model
+for multi-parent populations. bioRxiv [doi:10.1101/2021.08.03.454963](https://doi.org/10.1101/2021.08.03.454963)
+[![pdf](https://kbroman.org/icons16/pdf-icon.png)](https://www.biorxiv.org/content/10.1101/2021.08.03.454963v1.full.pdf)
+[![GitHub](https://kbroman.org/icons16/github-icon.png)](https://github.com/kbroman/Paper_GeneralHMM)
+[![doi](https://kbroman.org/icons16/doi-icon.png)](https://doi.org/10.1101/2021.08.03.454963)
 
 - [`gen_hmm.Rnw`](gen_hmm.Rnw) - source document (LaTeX + knitr)
 - [`gen_hmm_bib`](gen_hmm.bib) - BibTex bibliography
 - [`DOapp/`](DOapp) - application to Diversity Outbred mice - [`do_analysis.html`](https://kbroman.org/Paper_GeneralHMM/DOapp/do_analysis.html)
 - [`CCapp/`](CCapp) - application to Collaborative Cross mice - [`cc_analysis.html`](https://kbroman.org/Paper_GeneralHMM/CCapp/cc_analysis.html)
 - [`Makefile`](Makefile) - GNU Make file
-
-[Current version of manuscript ![pdf](https://kbroman.org/icons16/pdf-icon.png)](https://kbroman.org/Paper_GeneralHMM/gen_hmm.pdf)
 
 ### Required R packages
 
