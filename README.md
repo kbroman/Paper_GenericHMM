@@ -7,9 +7,11 @@ reconstruction in multi-parent populations.
 
 - [`gen_hmm.Rnw`](gen_hmm.Rnw) - source document (LaTeX + knitr)
 - [`gen_hmm_bib`](gen_hmm.bib) - BibTex bibliography
-- [`DOapp/`](DOapp) - application to Diversity Outbred mice
-- [`CCapp/`](CCapp) - application to Collaborative Cross mice
+- [`DOapp/`](DOapp) - application to Diversity Outbred mice - [`do_analysis.html`](https://kbroman.org/Paper_GeneralHMM/DOapp/do_analysis.html)
+- [`CCapp/`](CCapp) - application to Collaborative Cross mice - [`cc_analysis.html`](https://kbroman.org/Paper_GeneralHMM/CCapp/cc_analysis.html)
 - [`Makefile`](Makefile) - GNU Make file
+
+[Current version of manuscript ![pdf](https://kbroman.org/icons16/pdf-icon.png)](https://kbroman.org/Paper_GeneralHMM/gen_hmm.pdf)
 
 ### Required R packages
 
