@@ -50,7 +50,7 @@ p <- p[rn,]
 
 nf <- nrow(fg)
 
-pdf("../Figs/fig1_genome_reconstr.pdf", height=6.5, width=6, pointsize=14)
+pdf(here("Figs/fig1_genome_reconstr.pdf"), height=6.5, width=6, pointsize=14)
 
 layout(rbind(1,2,3,4), height=c(6,1,3.5,2.5))
 par(mar=c(0.6, 4.1, 1.6, 0.3))
