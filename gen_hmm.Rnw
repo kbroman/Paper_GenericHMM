@@ -45,7 +45,7 @@ options(width=87, digits=3, scipen=4)
 \vspace*{8mm}
 \begin{center}
 
-\textbf{\Large A general hidden Markov model
+\textbf{\Large A generic hidden Markov model
 for multi-parent populations}
 
 \bigskip \bigskip \bigskip \bigskip
@@ -68,7 +68,7 @@ University of Wisconsin--Madison, Madison, Wisconsin 53706
 
 \clearpage
 
-\noindent \textbf{Running head:} General HMM for MPPs
+\noindent \textbf{Running head:} Generic HMM for MPPs
 
 
 \bigskip \bigskip \bigskip
@@ -373,7 +373,7 @@ Reorganized files in R/qtl2 format are at
 \url{https://github.com/rqtl/qtl2data/tree/master/CC}.
 
 Our detailed analysis code is available at GitHub,
-\url{https://github.com/kbroman/Paper_GeneralHMM},
+\url{https://github.com/kbroman/Paper_GenericHMM},
 and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.5156660}.
 
 
