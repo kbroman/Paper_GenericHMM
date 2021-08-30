@@ -111,7 +111,7 @@ process, this can be tedious, particularly given the great variety of
 experimental designs that have been proposed. We describe an
 approximate model that can be applied for a variety of multi-parent
 populations. We have implemented the approach in the R/qtl2 software,
-and we illustrate its use in applications to publicly available data
+and we illustrate its use in applications to publicly-available data
 on Diversity Outbred and Collaborative Cross mice.
 
 
@@ -120,7 +120,7 @@ on Diversity Outbred and Collaborative Cross mice.
 \clearpage
 \section*{Introduction}
 
-Multi-parent populations (MPPs) are a valuable resource for the
+Multi-parent populations (MPPs) are valuable resources for the
 analysis of complex traits \citep{dekoning2017}, including the mapping
 of quantitative trait loci (QTL). A wide variety of MPPs have been
 developed, including heterogeneous stock (HS) in mice \citep{mott2000} and
@@ -247,7 +247,7 @@ Let $O_i$ be the observed SNP genotype at position $i$
 $G_1, \dots, G_{i-1}$ are conditionally independent of $G_{i+1}, \dots,
 G_M$, given $G_i$), and that $O_i$ is conditionally independent of
 everything else, given $G_i$. The forward-backward algorithm
-\citep[see][]{rabiner1989} provides a simple way to take advantage of
+\citep[see][]{rabiner1989} takes advantage of
 the conditional independence structure of the HMM to calculate
 $\Pr(G_i | \boldsymbol{O})$.
 
@@ -267,7 +267,7 @@ The initial and transition probabilities govern the underlying Markov
 chain, including the relative frequency of founder alleles and the
 frequency of recombination breakpoints along MPP chromosomes. In
 principle, these probabilities may be derived on the basis of the
-crossing design for the MPP \citep{broman2005}. In practice, the
+crossing design for the MPP. In practice, the
 transition probabilities can be tedious to derive, and exact
 calculations may provide no real advantage for genotype
 reconstruction.
@@ -354,29 +354,6 @@ expansion is 7. Thus we can take $n=8$ as the effective number of
 generations of random mating.
 
 
-\subsection*{Data and software availability}
-
-The R/qtl2 software is available at the Comprehensive R Archive
-Network (CRAN), \url{https://cran.r-project.org/package=qtl2}, as well
-as GitHub, \url{https://github.com/rqtl/qtl2}. Further documentation
-is available at the R/qtl2 website, \url{https://kbroman.org/qtl2}.
-
-The Diversity Outbred mouse data from \citet{albarghouthi2021} is
-available at Zenodo, \url{https://doi.org/10.5281/zenodo.4265417}.
-Also see their companion repository of analysis scripts at GitHub,
-\url{https://github.com/basel-maher/DO_project},
-and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.4718146}.
-
-The Collaborative Cross mouse data from \citet{srivastava2017} is
-available at Zenodo, \url{https://doi.org/10.5281/zenodo.377036}.
-Reorganized files in R/qtl2 format are at
-\url{https://github.com/rqtl/qtl2data/tree/master/CC}.
-
-Our detailed analysis code is available at GitHub,
-\url{https://github.com/kbroman/Paper_GenericHMM},
-and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.5156660}.
-
-
 \clearpage
 \section*{Applications}
 
@@ -414,7 +391,7 @@ contributing to the results in Table~1 of \citet{albarghouthi2021}.
 We performed genotype reconstruction using the transition matrices
 derived specifically for DO mice \citep{broman2019} as well as by the
 approximate model proposed above. For the DO mice at generation $n$,
-we used the transition probabilities for a general 8-way advanced
+we used the transition probabilities for general 8-way advanced
 intercross lines (AIL) at $n+5$.
 
 Following \citet{albarghouthi2021},
@@ -579,7 +556,7 @@ For example, in Figure~\ref{fig4_cc_xchr}, we show the genotype
 probabilities along the X chromosome for strain CC038/GeniUnc, as calculated with
 the more-exact model (Figure~\ref{fig4_cc_xchr}\textbf{a}) and with the approximate
 model (Figure~\ref{fig4_cc_xchr}\textbf{b}). We also include the results for
-the case that the more-exact model but with an incorrect cross design was used
+the case that the more-exact model but when an incorrect cross design was used
 (Figure~\ref{fig4_cc_xchr}\textbf{c}). Note the segment near 135 Mbp, which is
 inferred to be from founder NOD with the more-exact model but is equally likely B6
 or NOD with the approximate model; the B6 and NOD founder strains are
@@ -682,10 +659,42 @@ frequency of recombination breakpoints.
 
 
 \clearpage
-\section*{Acknowledgments}
+\subsection*{Data and software availability}
+
+The R/qtl2 software is available at the Comprehensive R Archive
+Network (CRAN), \url{https://cran.r-project.org/package=qtl2}, as well
+as GitHub, \url{https://github.com/rqtl/qtl2}. Further documentation
+is available at the R/qtl2 website, \url{https://kbroman.org/qtl2}.
+
+The Diversity Outbred mouse data from \citet{albarghouthi2021} is
+available at Zenodo, \url{https://doi.org/10.5281/zenodo.4265417}.
+Also see their companion repository of analysis scripts at GitHub,
+\url{https://github.com/basel-maher/DO_project},
+and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.4718146}.
+
+The Collaborative Cross mouse data from \citet{srivastava2017} is
+available at Zenodo, \url{https://doi.org/10.5281/zenodo.377036}.
+Reorganized files in R/qtl2 format are at
+\url{https://github.com/rqtl/qtl2data/tree/master/CC}.
+
+Our detailed analysis code is available at GitHub,
+\url{https://github.com/kbroman/Paper_GenericHMM},
+and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.5156660}.
+
+
+
+
+\section*{Funding}
 
 This work was supported in part by
 National Institutes of Health grant R01GM070683.
+
+
+
+\section*{Competing Interests}
+
+The author declares no competing interests.
+
 
 
 
@@ -693,6 +702,8 @@ National Institutes of Health grant R01GM070683.
 \bibliographystyle{genetics}
 \renewcommand*{\refname}{\normalfont\sffamily\bfseries Literature Cited}
 \bibliography{gen_hmm}
+
+
 
 
 \end{document}
