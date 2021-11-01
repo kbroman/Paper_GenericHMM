@@ -21,24 +21,19 @@
 \renewcommand{\thetable}{\textbf{\arabic{table}}}
 
 <<setup, include=FALSE>>=
-knitr::opts_chunk$set(echo=FALSE, results="hide",
-                      warning=FALSE, message=FALSE)
+library(knitr)
+opts_chunk$set(echo=FALSE, results="hide",
+               warning=FALSE, message=FALSE)
+library(readxl)
 library(broman)
 library(here)
 library(qtl2)
 library(qtl2fst)
 options(knitr.table.format="latex")
+options(width=87, digits=3, scipen=4)
 @
 
 \begin{document}
-
-%%%%%%%%% knitr stuff %%%%%%%%%%%%%%%%%
-<<options, echo=FALSE, results="hide">>=
-library(knitr)
-opts_chunk$set(message=FALSE)
-options(width=87, digits=3, scipen=4)
-@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \setstretch{2.0}
 
@@ -74,7 +69,9 @@ University of Wisconsin--Madison, Madison, Wisconsin 53706
 \bigskip \bigskip \bigskip
 
 \noindent \textbf{Key words:} quantitative trait loci, QTL, HMM,
-Collaborative Cross, MAGIC, diversity outbred mice, heterogeneous stock
+Collaborative Cross, Diversity Outbred mice, heterogeneous stock, MPP,
+multiparental populations, Multiparent Advanced Generation Inter-Cross
+(MAGIC)
 
 
 
@@ -102,12 +99,14 @@ Collaborative Cross, MAGIC, diversity outbred mice, heterogeneous stock
 
 A common step in the analysis of multi-parent populations is genotype
 reconstruction: identifying the founder origin of haplotypes from
-dense marker data. This process often makes use of a model for the
-exchange process along chromosomes, including the relative frequency
-of founder alleles and of the probability of exchanges among them.
-While the precise experimental design used to generate the population
-may be used to derive a precise characterization of the exchange
-process, this can be tedious, particularly given the great variety of
+dense marker data. This process often makes use of a probability model
+for the pattern of founder alleles along chromosomes, including the
+relative frequency of founder alleles and the probability of exchanges
+among them, which depend on a model for meiotic recombination and on
+the mating design for the population. While the precise experimental
+design used to generate the population may be used to derive a precise
+characterization of the model for exchanges among founder alleles,
+this can be tedious, particularly given the great variety of
 experimental designs that have been proposed. We describe an
 approximate model that can be applied for a variety of multi-parent
 populations. We have implemented the approach in the R/qtl2 software,
@@ -187,9 +186,9 @@ Fig.~\ref{fig1_genome_reconstr}\textbf{d}. In the HAPPY software for
 HS mice, \citet{mott2000}
 used a model of random mating in a large population.
 \citet{broman2005} extended the work of \citet{haldane1931}
-to derive transition probabilities along chromosomes in multi-strain
+to derive two-locus genotype probabilities in multi-parent
 recombinant inbred lines. This was later developed
-for the case of advanced intercross populations
+for the case of multi-parent advanced intercross populations
 \citep{broman2012a,broman2012b}, including Diversity
 Outbred (DO) mice \citep{churchill2012}.
 
@@ -214,7 +213,7 @@ recombination breakpoints.
 
 Our approach has been implemented in R/qtl2. While we currently focus
 on data with SNP genotype calls, such as from microarrays, our model
-could be incorporated into methods for genotype imputation
+could potentially be incorporated into methods for genotype imputation
 from low-coverage sequencing, such as that of \citet{zheng2018}. We
 illustrate our approach through application to publicly-available
 datasets on DO \citep{albarghouthi2021} and Collaborative Cross mice
@@ -235,33 +234,33 @@ cross; the extension to an MPP is straightforward and described below.
 Consider an MPP derived from $k$ inbred lines. We focus on a single
 individual, and on a single chromosome with $M$ marker positions
 (including pseudomarkers: positions between markers at which we have
-no data but would like to infer the underlying genotype). Let $G_i$ be
-the underlying genotype at position $i$.
-In a homozygous population, such as RIL, the $G_i$ take one of $k$
+no data but would like to infer the underlying genotype). Let $G_m$ be
+the underlying genotype at position $m$.
+In a homozygous population, such as RIL, the $G_m$ take one of $k$
 possible values, the $k$ homozygous genotypes.
 In a heterozygous population, such as advanced intercross lines (AIL),
-the $G_i$ take one of $\binom{k}{2} + k$ possible values, the
+the $G_m$ take one of $\binom{k}{2} + k$ possible values, the
 $\binom{k}{2}$ heterozygotes and $k$ homozygotes.
-Let $O_i$ be the observed SNP genotype at position $i$
-(possibly missing). We assume that the $G_i$ form a Markov chain (that
-$G_1, \dots, G_{i-1}$ are conditionally independent of $G_{i+1}, \dots,
-G_M$, given $G_i$), and that $O_i$ is conditionally independent of
-everything else, given $G_i$. The forward-backward algorithm
+Let $O_m$ be the observed SNP genotype at position $m$
+(possibly missing). We assume that the $G_m$ form a Markov chain (that
+$G_1, \dots, G_{m-1}$ are conditionally independent of $G_{m+1}, \dots,
+G_M$, given $G_m$), and that $O_m$ is conditionally independent of
+everything else, given $G_m$. The forward-backward algorithm
 \citep[see][]{rabiner1989} takes advantage of
 the conditional independence structure of the HMM to calculate
-$\Pr(G_i | \boldsymbol{O})$.
+$\Pr(G_m | \boldsymbol{O})$.
 
 The key parameters in the model are the \emph{initial\/}
 probabilities, $\pi_g = \Pr(G_1 = g)$, the \emph{transition\/}
-probabilities, $t_i(g, g') = \Pr(G_{i+1} = g' \ | \ G_i = g)$, and the
-\emph{emission\/} probabilities, $e_i(g) = \Pr(O_i | G_i = g)$. A
+probabilities, $t_m(g, g') = \Pr(G_{m+1} = g' \ | \ G_m = g)$, and the
+\emph{emission\/} probabilities, $e_m(g) = \Pr(O_m | G_m = g)$. A
 particular advantage of the HMM for genotype reconstruction is the
 easy incorporation of a model for genotyping errors
 \citep{lincoln1992}, which is done through the emission probabilities,
 which condition on the founder SNP genotypes but allow some fixed
 probability $\epsilon$ that the observed SNP genotype in the MPP
 individual is in error and incompatible with the underlying genotype
-$G_i$ and the SNP genotypes in the founder lines.
+$G_m$ and the SNP genotypes in the founder lines.
 
 The initial and transition probabilities govern the underlying Markov
 chain, including the relative frequency of founder alleles and the
@@ -590,7 +589,7 @@ and another \Sexpr{numbers[sum(p_dX >= 0.1 & p_dX < 0.25)]} strains with maximum
 difference in the range 0.10 -- 0.25. All of the differences concern
 cases where multiple founders are identical for a region and either some would
 be excluded by the cross design, or where the difference in prior
-frequencies affects the results, in that in the cross
+frequencies affects the results. For example, in the cross
 [(A$\times$B)$\times$(C$\times$D)]$\times$[(E$\times$F)$\times$(G$\times$H)],
 the frequency of the C allele on the X chromosome is twice that of A,
 B, E, and F.
@@ -620,24 +619,15 @@ CC lines, where some founder alleles can be excluded based on the
 cross design. The more-exact model for the X chromosome in the CC
 excludes three of the eight founders based on the cross design. This
 is particularly useful in cases that multiple founders are identical
-by descent across a region. However, the approximate model is robust
-to errors in the specified cross design.
+by descent across a region. However, the approximate model is not
+affected by errors in the specified cross design (see Figure~4).
 
 The value of this generic model points towards the general usefulness
 of the original software for multi-parent populations, HAPPY
 \citep{mott2000}, developed for the analysis of mouse heterogeneous
-stock. Here, we have extended that approach to allow differences in the
-frequencies of founders.
-While in the two applications considered here, the founders were
-combined in equal proportions, there are other multi-parent
-populations where that is not the case. For example, the maize MAGIC
-lines of \citet{dellacqua2015} were largely derived from eight
-founders, but breeding difficulties led to the introduction of a ninth
-founder at somewhat varying proportion.
-
-The results are dependent on marker density and informativeness. With a
-dense set of informative markers, the choice of model
-used for the reconstruction has less influence on the results.
+stock. The results may depend on marker density and informativeness,
+but with a dense set of informative markers, a generic approach can
+provide good-quality genome reconstructions.
 
 The hidden Markov model itself is an approximation. Meiosis generally
 exhibits positive crossover interference, but the Markov property is
@@ -682,6 +672,11 @@ Our detailed analysis code is available at GitHub,
 and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.5156660}.
 
 
+\section*{Acknowledgments}
+
+Two anonymous reviewers provided valuable comments for improvement of
+the manuscript.
+
 
 
 \section*{Funding}
@@ -691,9 +686,9 @@ National Institutes of Health grant R01GM070683.
 
 
 
-\section*{Competing Interests}
+\section*{Conflicts of interest}
 
-The author declares no competing interests.
+The author declares that there is no conflict of interest.
 
 
 
