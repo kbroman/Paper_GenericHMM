@@ -126,7 +126,7 @@ developed, including heterogeneous stock (HS) in mice \citep{mott2000} and
 rats \citep{solberg2010}, eight-way recombinant inbred lines (RIL) in mice
 \citep{ctc2004} and Drosophila \citep{king2012}, and multi-parent
 advanced generation intercross (MAGIC) populations
-in a variety of plant species including arabidopsis \citep{kover2009},
+in a variety of plant species including Arabidopsis \citep{kover2009},
 wheat \citep{cavanagh2008}, maize \citep{dellacqua2015}, and rice
 \citep{bandillo2013}.
 
@@ -665,11 +665,11 @@ and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.4718146}.
 The Collaborative Cross mouse data from \citet{srivastava2017} is
 available at Zenodo, \url{https://doi.org/10.5281/zenodo.377036}.
 Reorganized files in R/qtl2 format are at
-\url{https://github.com/rqtl/qtl2data/tree/master/CC}.
+\url{https://github.com/rqtl/qtl2data/tree/main/CC}.
 
 Our detailed analysis code is available at GitHub,
 \url{https://github.com/kbroman/Paper_GenericHMM},
-and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.5156660}.
+and archived at Zenodo, \url{https://doi.org/10.5281/zenodo.5718739}.
 
 
 \section*{Acknowledgments}
